@@ -2,6 +2,8 @@ package es.medialabprado.muploader;
 
 import processing.core.*;
 import processing.data.*;
+
+import java.nio.charset.Charset;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -17,6 +19,7 @@ import controlP5.Textfield;
 import controlP5.Textlabel;
 import java.io.File;
 import com.csvreader.CsvReader;
+import com.csvreader.CsvWriter;
 import com.vimeo.VimeoUploadClient;
 import com.vimeo.VimeoUploadClient.APIException;
 import com.youtube.YouTubeUploadClient;
@@ -162,6 +165,7 @@ public class VideoUploaderP5 extends PApplet {
 	String stopedUploadLabel_0 = "UPLOAD WILL STOP WHEN FINISHING THE CURRENT UPLOAD";
 	String currentUploadLabel = "UPLOADING FILE TO ";
 	String csvFile = "movie.csv";
+	String csvFile_out = "movie_out.csv";
 
 	int backgroundUploadColor = 0xFFA1A1A1;
 
@@ -639,37 +643,55 @@ public class VideoUploaderP5 extends PApplet {
 
 		try {
 
-			CsvReader products = new CsvReader(csvFile);
-
+			CsvReader videoInfoReader= new CsvReader(csvFile,',',Charset.forName("UTF-8"));
+			CsvWriter videoInfoWriter =  new CsvWriter(csvFile_out,',',Charset.forName("UTF-8"));
+			
 			// header:
 			// id,uri,duration,title,date,description,creator,data_1,data_2,data_3,type,tags,authors
-			products.readHeaders();
+			videoInfoReader.readHeaders();
+			String[] readHeaders = videoInfoReader.getHeaders();
+			int aditionalHeaders = 2; // local_video_title, upload_log_file
+			String[] writeHeaders = new String[readHeaders.length + aditionalHeaders];
+			for(int i = 0; i < readHeaders.length; i++) {
+				writeHeaders[i] = readHeaders[i];
+			}
+			writeHeaders[readHeaders.length] = "local_video_title";
+			writeHeaders[readHeaders.length+1] = "upload_log_file";
+			String headers = "";
+			for(int i = 0; i < writeHeaders.length-1; i++) {
+				headers += writeHeaders[i] + ",";
+			}
+			headers += writeHeaders[writeHeaders.length-1];
+			videoInfoWriter.write(headers); 
+			videoInfoWriter.close();
+		
+			
 			int counter = 0;
-			while (products.readRecord()) {
+			while (videoInfoReader.readRecord()) {
 				VideoInfo videoInfo = new VideoInfo();
 				videoInfo.arrID = counter;
 				counter++;
-				videoInfo.videoID = products.get("id");
-				videoInfo.uri = products.get("uri");
-				videoInfo.duration = products.get("duration");
-				videoInfo.title = parseUploadString(products.get("title"));
-				videoInfo.date = parseUploadString(products.get("date"));
-				videoInfo.description = parseUploadString(products
+				videoInfo.videoID = videoInfoReader.get("id");
+				videoInfo.uri = videoInfoReader.get("uri");
+				videoInfo.duration = videoInfoReader.get("duration");
+				videoInfo.title = parseUploadString(videoInfoReader.get("title"));
+				videoInfo.date = parseUploadString(videoInfoReader.get("date"));
+				videoInfo.description = parseUploadString(videoInfoReader
 						.get("description"));
-				videoInfo.place = parseUploadString(products.get("creator"));
-				videoInfo.data_1 = products.get("data_1");
-				videoInfo.data_2 = products.get("data_2");
-				videoInfo.data_3 = products.get("data_3");
-				videoInfo.type = parseUploadString(products.get("type"));
-				videoInfo.tags = parseUploadString(products.get("tags"));
-				videoInfo.authors = parseUploadString(products.get("authors"));
+				videoInfo.place = parseUploadString(videoInfoReader.get("creator"));
+				videoInfo.data_1 = videoInfoReader.get("data_1");
+				videoInfo.data_2 = videoInfoReader.get("data_2");
+				videoInfo.data_3 = videoInfoReader.get("data_3");
+				videoInfo.type = parseUploadString(videoInfoReader.get("type"));
+				videoInfo.tags = parseUploadString(videoInfoReader.get("tags"));
+				videoInfo.authors = parseUploadString(videoInfoReader.get("authors"));
 
 				videoInfo.printData();
 				print(counter + " : ");
 				videoArr.add(videoInfo);
 			}
 
-			products.close();
+			videoInfoReader.close();
 
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
